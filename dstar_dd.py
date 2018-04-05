@@ -14,26 +14,28 @@ class dstardd():
     sr = 0x7f;
     logger = None;
 
-    def descramble(self,s):
+    # Scrambe / descrable data with pseudo random sequence
+    # self.sr must be initialized before first call
+    def scramble(self,s):
         ret = ['\x00'] * len(s)
         for i in xrange(len(s)): 
             if ( ((self.sr>>3) & 0x1) ^ (self.sr & 0x1) ) :
                 self.sr >>= 1;
                 self.sr  |= 64;
-                ret[i] = chr((ord(bytes(s[i])) & 0x1 ) ^ 0x1);
+                ret[i] = (s[i] & 0x1 ) ^ 0x1;
             else:
                 self.sr >>= 1;
-                ret[i] = s[i]
+                ret[i] = s[i] & 0x1
         return ret
 
     def deinterleave(self,s):
         ret = [0] * 660
         for i in xrange(12) :
             for j in xrange(28) :
-                ret[i + j*24] = chr(ord(s[i*28 + j]) & 0xFF);
+                ret[i + j*24] = s[i*28 + j];
         for i in xrange(12,24) :
             for j in xrange(27) :
-                ret[i + j*24] = chr(ord(s[i*27 + j + 12]) & 0xFF);
+                ret[i + j*24] = s[i*27 + j + 12];
         return ret
 
     def convdecode(self, symbols):
@@ -42,7 +44,7 @@ class dstardd():
         self.g_matrix = np.array([[0o7, 0o5]])
         self.tr = Trellis(self.memory, self.g_matrix, 0, 'default')
 	#
-        x = list(chr(ord(s)+ord('0')) for s in symbols)
+        x = list(chr(s+ord('0')) for s in symbols)
         bits = np.array(x)
         decoded = viterbi_decode(bits, self.tr, 15)
         return decoded
@@ -52,7 +54,7 @@ class dstardd():
     # returns header as byte array, len as int
     def dstardd_decode_header(self, header):
         self.sr = 0x7f
-        header = self.descramble(header)
+        header = self.scramble(header)
         headerbits = self.deinterleave(header)
         headerbits = self.convdecode(headerbits)   
         data = ""
@@ -62,7 +64,7 @@ class dstardd():
             data += chr(zeichen)
         len = 0
         for i in xrange(2):
-            for j in xrange(8): len += (ord(header[660+i*8+j])&1)<<(i*8+j)
+            for j in xrange(8): len += (header[660+i*8+j]&1)<<(i*8+j)
         if self.logger: self.logger.info("Decoded header data: "+repr(data))
         if self.logger: self.logger.info("Decoded len of payload: %d"%len)
         return data, len+4
@@ -70,11 +72,11 @@ class dstardd():
     # Decoder for DStar DD frames -- payload
     # data is an array of bits (multiple of 8)
     def dstardd_decode_body(self, data):
-        data = self.descramble(data)
+        data = self.scramble(data)
         erg_pack = [0] * (len(data)/8)
         for i in xrange(len(data)/8):
             for j in xrange(8):
-                erg_pack[i] |= (ord(data[i*8+j]) & 1) << j;
+                erg_pack[i] |= (data[i*8+j] & 1) << j;
             erg_pack[i] = chr(erg_pack[i])
         if self.logger: self.logger.info("Decoded packet data: "+repr(erg_pack))
         return erg_pack
@@ -136,21 +138,11 @@ class dstardd():
         content = chr(datalen&0xff) + chr((datalen>>8)&0xff) + data
         print("content for dstar crc: ", repr(content))
         dstarcrc = zlib.crc32(content) & 0xffffffff
-        # TODO: Check if bit order is right - should by LSB first
-        #dstarcrc = ((d>>24)&0xff) | ((d>>16)&0xff)<<8 | ((d>>8)&0xff)<<16 | (d&0xff)<<24
-        #crcbits = [(dstarcrc>>i)&1 for i in range(31,-1,-1)]
         crcbits = [(dstarcrc>>i)&1 for i in range(0,32)]
 
         all = interleaved + lenbits + databits + crcbits
 
-        # Scramble complete header block including data length and data
-        sr =0x7f
-        for i in xrange(len(all)):
-            if ( ((sr>>3)&0x1)^(sr&0x01) ):
-	        sr >>=1
-	        sr |= 64
-	        all[i] = all[i] ^ 0x01;
-            else:
-	        sr >>= 1
-
+        # Scramble complete frame including header, data length and data
+        self.sr = 0x7f
+        all = self.scramble(all)
         return all

@@ -103,12 +103,12 @@ def main():
             raw_header = [0] * headlen_bits
             for i in xrange(headlen_bits):
                 if i > 0: al = file.read(1)
-                raw_header[i] = chr(ord(al[0]) & 1 )
+                raw_header[i] = ord(al[0]) & 1
             (header,maxb) = decoder.dstardd_decode_header(raw_header)
             datapack = [0] * (maxb*8)
             for i in xrange(maxb*8):
                 al = bytes(file.read(1));
-                datapack[i] = chr( ord(al[0])&1 );
+                datapack[i] = ord(al[0]) & 1;
             data = decoder.dstardd_decode_body(datapack)
 
             # Expected CRC for ethernet frame with correct field order
