@@ -33,6 +33,12 @@ pcap_packet_header =   ('SSSSSSSS'   # Timestamp (seconds)
 # Receives a bitstream (one byte per bit, second bit set for frame start)
 # and decodes frames into either pcap files or a tap device
 
+port = 0
+file = None
+sock = None
+data = None
+datapos = 0
+
 def usage():
     print "Usage: "+sys.argv[0]+" [-v] [-h] [-t] [-i <script>] [-u <ip:port>] [-p <pcapfile>] [inputfile]"
     print "    -h: Prints help (this text)"
@@ -45,11 +51,26 @@ def usage():
     # print "    -b <n>: symbols per byte (1 or 8, bigendian)"
     print "    inputfile, if ommitted reads from stdin"
 
+def nextbyte():
+    global port, data, datapos, file, sock
+    if port:
+        if data and (datapos<len(data)):
+            datapos=datapos+1
+            return data[datapos-1]
+        else:
+            data = sock.recv(4096)
+            if len(data)==0: return ''
+            datapos = 1
+            return data[datapos-1]
+    else:
+        return file.read(1);
+    
+
 def main():
+    global port, data, datapos, file, sock
     logging.basicConfig(format='%(message)s')
     logger = logging.getLogger('dstardd')
     loop = 0
-    port = 0
     pcap = ""
     device = ""
     packing = "1"
@@ -116,20 +137,20 @@ def main():
         pcap.write(binascii.a2b_hex(pcap_global_header))
 
     while True:
-        if port: al = sock.recv(1)
-        else: al = file.read(1);
+        al = nextbyte()
         if al == '': logger.warn("End of file"); break
         if ord(al)>=2:
             # Found start of message
             headlen_bits = 660 + 16  # header + len data packet
             raw_header = [0] * headlen_bits
             for i in xrange(headlen_bits):
-                if i > 0: al = file.read(1)
+                if i > 0:
+                    al = nextbyte()
                 raw_header[i] = ord(al[0]) & 1
             (header,maxb) = decoder.dstardd_decode_header(raw_header)
             datapack = [0] * (maxb*8)
             for i in xrange(maxb*8):
-                al = bytes(file.read(1));
+                al = nextbyte()
                 datapack[i] = ord(al[0]) & 1;
             data = decoder.dstardd_decode_body(datapack)
 
@@ -154,7 +175,7 @@ def main():
                 pcaph = pcaph.replace('UUUUUUUU',tsu[6:8]+tsu[4:6]+tsu[2:4]+tsu[0:2])
                 pcap.write(binascii.a2b_hex(pcaph)+''.join(data))
             if device == "tap":
-                logger.info("Writign packet to TAP device")
+                logger.info("Writing packet to TAP device")
 	        os.write(tap, ''.join(data))
 
 

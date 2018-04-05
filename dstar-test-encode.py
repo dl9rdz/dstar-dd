@@ -5,6 +5,7 @@ import sys
 import logging
 import os
 import struct
+import socket
 from fcntl import ioctl
 
 TUNSETIFF = 0x400454ca
@@ -28,12 +29,13 @@ my2   = "IDID"
 
 
 def usage():
-    print "Usage: "+sys.argv[0]+" [-v] [-h] [-t] [-l] [-p <pcapfile>] [outputfile]"
+    print "Usage: "+sys.argv[0]+" [-v] [-h] [-t] [-l] [-u <ip:port>] [-p <pcapfile>] [outputfile]"
     print "    -h: Prints help (this text)"
     print "    -t: Creates a new TAP device for receiving network frames"
     print "    -p <pcapfile>: Reads network frames from PCAP file"
     print "    -v: Enables verbose mode (to stderr)"
-    print "    -l: loop forever (implicitely set for -p)"
+    print "    -l: loop forever on pcap file"
+    print "    -u <ip:port> write output to UDP port instead of file"
     print "    -b <n>: symbols per byte (1 or 8, bigendian)"
     print "    outputfile, if ommitted writes to stdout"
 
@@ -44,7 +46,9 @@ def main():
     pcap = ""
     device = ""
     packing = "1"
-    opts,args = getopt.getopt(sys.argv[1:], 'b:lvtp:h', ["help","tap","pcap="])
+    ip = ""
+    port = 0
+    opts,args = getopt.getopt(sys.argv[1:], 'u:b:lvtp:h', ["help","tap","pcap="])
     for o,a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -57,6 +61,10 @@ def main():
             logger.setLevel(logging.DEBUG)
         elif o in ("-l"):
             loop = 1
+        elif o in ("-u"):
+            ip,port = a.split(':')
+            port = int(port)
+            assert (port>0) and (port<65536), "Invalid UDP port %s" % a
         elif o in ("-b"):
             packing = a
         else:
@@ -70,9 +78,14 @@ def main():
         outfile = args[0]
     else:
         outfile = "/dev/stdout"
-    logging.info("Output written to"+outfile)
     
-    file = open(outfile, "wb")
+
+    if port>0:
+        logger.info("Writing output to UDP socket %s:%d" % (ip,port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+    else:
+        logger.info("Output written to"+outfile)
+        file = open(outfile, "wb")
 
     verbose = 0
     prefix = 16        # Length of 1/0... sequence before sync pattern
@@ -101,9 +114,11 @@ def main():
         if packing == "1":
             logger.info("Writing 1S/b for bits "+str(len(bits)))
             bits[0] += 2
-            for i in xrange(len(bits)):
-                b = chr(bits[i]);
-                file.write(b)
+            b = ''.join(map(chr,bits))
+            #for i in xrange(len(bits)):
+            #    b = chr(bits[i]);
+            if port: sock.sendto(b, (ip,port))
+            else: file.write(b)
         elif packing == "8":
             header = [1, 0]*prefix + [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
             bits = header + bits
@@ -111,7 +126,8 @@ def main():
             bibi = bits + space 
             packbits = bitarray(bibi, endian='big')
             packed = packbits.tobytes()
-            file.write(packed)
+            if port: sock.sendto(packed, (ip,port))
+            else: file.write(packed)
         if loop==0:
             sys.exit(0)
 
