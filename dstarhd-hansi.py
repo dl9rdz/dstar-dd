@@ -30,7 +30,7 @@ pcap_global_header =   ('D4C3B2A1'
                         '00000000'
                         'FFFF0000'
                         '01000000')
-pcap_packet_header =   ('AA779F47'
+pcap_packet_header =   ('AA779F47'  # real timestamp
                         '90A20400'
                         'XXXXXXXX'   #Frame Size (little endian) 
                         'YYYYYYYY')  #Frame Size (little endian)
@@ -101,7 +101,8 @@ class dstarhd_out():
 #    global raw_header, symbole2;
     hdr=0
     lstr=''; al='';
-    self.file = open("./2018-complex-record-512k-decode-2.pktn");
+    self.file = open("out.pktn")
+    #self.file = open("./2018-complex-record-512k-decode-2.pktn");
     #self.file = open("testout.pktn")
     pcap = open("out.pcap","wb");
     pcap.write(binascii.a2b_hex(pcap_global_header));

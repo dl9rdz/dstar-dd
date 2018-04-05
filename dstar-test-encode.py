@@ -3,6 +3,13 @@ from bitarray import bitarray
 import getopt
 import sys
 import logging
+import os
+import struct
+from fcntl import ioctl
+
+TUNSETIFF = 0x400454ca
+IFF_TUN = 0x0001
+IFF_TAP = 0x0002
 
 # (incomplete)
 # This is a simple test program for D-Star DD packet encoder
@@ -75,12 +82,19 @@ def main():
     data += "\x45\x00"+"\x00\x26"+"\x00\x00\x40\x00\x3F\x01\x00\x00"
     data += "\x2C"*4 + "\x00"*4   # 44.44.44.44 to 0.0.0.0
     data += "\x08\x00\x00\x00\x55\x66\x00\x01123456\x00\x00\x00\x00"
+    if device == "tap":
+        tap = os.open("/dev/net/tun", os.O_RDWR)
+        itap = ioctl(tap, TUNSETIFF, struct.pack("16sH", "dstar%d", IFF_TAP))
+        ifname = itap[:16].strip("\x00")
+        print ("Allocated interface %a")
     while True:
         if pcap:
             logger.info("Reading packet from PCAP file (not yet impl)")
             # TODO: Read from pcap file
         elif device == "tap":
-            logger.info("Reading packet from TAP device (not yet impl)")
+            logger.info("Reading packet from TAP device")
+	    data = os.read(tap, 2048)
+            data = data[4:]
         # Now we have packet data in data
         bits = encoder.dstardd_encode(header, data)
         logger.info("packing is"+packing+"!")
