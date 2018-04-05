@@ -120,8 +120,8 @@ def main():
             if port: sock.sendto(b, (ip,port))
             else: file.write(b)
         elif packing == "8":
-            header = [1, 0]*prefix + [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
-            bits = header + bits
+            ethheader = [1, 0]*prefix + [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
+            bits = ethheader + bits
             space = [0]*spacing
             bibi = bits + space 
             packbits = bitarray(bibi, endian='big')
