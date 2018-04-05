@@ -11,8 +11,8 @@ from struct import *
 from commpy.channelcoding.convcode import Trellis, conv_encode, viterbi_decode
 
 class dstardd():
-    sr = 0x7f;
-    logger = None;
+    def __init__(self):
+        self.logger = None;
 
     # Scrambe / descrable data with pseudo random sequence
     # self.sr must be initialized before first call
@@ -78,6 +78,18 @@ class dstardd():
             for j in xrange(8):
                 erg_pack[i] |= (data[i*8+j] & 1) << j;
             erg_pack[i] = chr(erg_pack[i])
+        # Check D-Star payload checksum
+        crcbytes = pack("<H",len(erg_pack)-4)+''.join(erg_pack)
+        crc = zlib.crc32(crcbytes[0:len(crcbytes)-4]) & 0xffffffff
+        rxcrc = unpack("<I",crcbytes[len(crcbytes)-4:])[0]
+        if self.logger: self.logger.info("D-Star CRC ok: %s" % 'yes' if crc==rxcrc else 'no')
+        # Check and fix ethernet frame checksum
+        erg_pack = erg_pack[6:12] + erg_pack[0:6] + erg_pack[12:len(erg_pack)-4]
+        crcbytes = ''.join(erg_pack)
+        ethcrc = zlib.crc32(crcbytes) & 0xffffffff
+        if crc!=rxcrc: ethcrc ^= 0xffffffff   # invalided crc for invalid dstar crc
+        erg_pack += map(chr,bytearray(pack("<I",ethcrc)))
+
         if self.logger: self.logger.info("Decoded packet data: "+repr(erg_pack))
         return erg_pack
 
