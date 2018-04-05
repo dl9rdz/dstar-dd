@@ -61,7 +61,7 @@ def main():
             packing = a
         else:
             assert False, "Invalid option "+o
-    encoder = dstardd_out()
+    encoder = dstardd()
 
     header = head+rptr1+rptr2+your+my1+my2
     logger.info("D-Star packet header: "+repr(header))
@@ -86,7 +86,7 @@ def main():
         tap = os.open("/dev/net/tun", os.O_RDWR)
         itap = ioctl(tap, TUNSETIFF, struct.pack("16sH", "dstar%d", IFF_TAP))
         ifname = itap[:16].strip("\x00")
-        print ("Allocated interface %a")
+        print ("Allocated interface %s" % ifname)
     while True:
         if pcap:
             logger.info("Reading packet from PCAP file (not yet impl)")
