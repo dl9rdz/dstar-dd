@@ -7,6 +7,8 @@ import os
 import struct
 import time
 import binascii
+import socket
+from subprocess import call
 from fcntl import ioctl
 
 TUNSETIFF = 0x400454ca
@@ -32,11 +34,13 @@ pcap_packet_header =   ('SSSSSSSS'   # Timestamp (seconds)
 # and decodes frames into either pcap files or a tap device
 
 def usage():
-    print "Usage: "+sys.argv[0]+" [-v] [-h] [-t] [-l] [-p <pcapfile>] [inputfile]"
+    print "Usage: "+sys.argv[0]+" [-v] [-h] [-t] [-i <script>] [-u <ip:port>] [-p <pcapfile>] [inputfile]"
     print "    -h: Prints help (this text)"
     print "    -t: Creates a new TAP device for sending network frames"
+    print "    -i <script>: Initialization script for TAP device"
     print "    -p <pcapfile>: Writes network frames to PCAP file"
     print "    -v: Enables verbose mode (to stderr)"
+    print "    -u <ip:port>: Read from UDP instead of inputfile"
     # print "    -l: loop forever (implicitely set for -p)"
     # print "    -b <n>: symbols per byte (1 or 8, bigendian)"
     print "    inputfile, if ommitted reads from stdin"
@@ -45,10 +49,12 @@ def main():
     logging.basicConfig(format='%(message)s')
     logger = logging.getLogger('dstardd')
     loop = 0
+    port = 0
     pcap = ""
     device = ""
     packing = "1"
-    opts,args = getopt.getopt(sys.argv[1:], 'b:lvtp:h', ["help","tap","pcap="])
+    tapscript = None
+    opts,args = getopt.getopt(sys.argv[1:], 'u:vti:p:h', ["help","tap","pcap="])
     for o,a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -59,10 +65,16 @@ def main():
             pcap = a
         elif o in ("-v"):
             logger.setLevel(logging.DEBUG)
+        elif o in ("-i"):
+            tapscript = a
         elif o in ("-l"):
             loop = 1
         elif o in ("-b"):
             packing = a
+        elif o in ("-u"):
+            ip,port = a.split(':')
+            port = int(port)
+            assert (port>0) and (port<65536), "Invalid UDP port %s" % a
         else:
             assert False, "Invalid option "+o
 
@@ -72,30 +84,40 @@ def main():
     #header = head+rptr1+rptr2+your+my1+my2
     #logger.info("D-Star packet header: "+repr(header))
 
+
     if(len(args)>0):
+        assert port==0, "Cannot use UDP port and file simultaneously"
         infile = args[0]
     else:
         infile = "/dev/stdin"
-    logging.info("Input read from "+infile)
-    
-    file = open(infile, "rb")
 
-    verbose = 0
+    if port==0:
+        logger.info("Input read from "+infile)
+        file = open(infile, "rb")
+    else:
+        logger.info("Input read from UDP: %s:%d" % (ip,port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.bind((ip, port))
+        except socket.error, err:
+            print ("Couldn't be a UDP server on %s:%d: %s" % (ip,port,err))
+            raise SystemExit
+
     if device == "tap":
         tap = os.open("/dev/net/tun", os.O_RDWR)
         itap = ioctl(tap, TUNSETIFF, struct.pack("16sH", "dstar%d", IFF_TAP|IFF_NO_PI))
         ifname = itap[:16].strip("\x00")
         print "Allocated interface %s" % ifname
-        time.sleep(20)
-        # bring device up
-        # TODO... ret = ioctl(tap, cmd, req)
-        
+        if tapscript:
+            logger.info("Running setup script %s" % tapscript)
+            call([tapscript, ifname])
     if pcap:
         pcap = open(pcap, "wb")
         pcap.write(binascii.a2b_hex(pcap_global_header))
 
     while True:
-        al = file.read(1);
+        if port: al = sock.recv(1)
+        else: al = file.read(1);
         if al == '': logger.warn("End of file"); break
         if ord(al)>=2:
             # Found start of message
