@@ -12,6 +12,7 @@ from commpy.channelcoding.convcode import Trellis, conv_encode, viterbi_decode
 
 class dstardd():
     sr = 0x7f;
+    logger = None;
 
     def descramble(self,s):
         ret = ['\x00'] * len(s)
@@ -41,11 +42,8 @@ class dstardd():
         self.g_matrix = np.array([[0o7, 0o5]])
         self.tr = Trellis(self.memory, self.g_matrix, 0, 'default')
 	#
-	print repr(symbols)
         x = list(chr(ord(s)+ord('0')) for s in symbols)
-        print repr(x)
         bits = np.array(x)
-        print repr(bits)
         decoded = viterbi_decode(bits, self.tr, 15)
         return decoded
 
@@ -65,21 +63,20 @@ class dstardd():
         len = 0
         for i in xrange(2):
             for j in xrange(8): len += (ord(header[660+i*8+j])&1)<<(i*8+j)
-        print "Data: ",repr(data)
-        print "Len: ",len
+        if self.logger: self.logger.info("Decoded header data: "+repr(data))
+        if self.logger: self.logger.info("Decoded len of payload: %d"%len)
         return data, len+4
 
     # Decoder for DStar DD frames -- payload
     # data is an array of bits (multiple of 8)
     def dstardd_decode_body(self, data):
         data = self.descramble(data)
-        print repr(data)
-        print len(data)
         erg_pack = [0] * (len(data)/8)
         for i in xrange(len(data)/8):
             for j in xrange(8):
                 erg_pack[i] |= (ord(data[i*8+j]) & 1) << j;
             erg_pack[i] = chr(erg_pack[i])
+        if self.logger: self.logger.info("Decoded packet data: "+repr(erg_pack))
         return erg_pack
 
     # Encoder for DStar DD frames

@@ -67,6 +67,7 @@ def main():
             assert False, "Invalid option "+o
 
     decoder = dstardd()
+    decoder.logger = logger
 
     #header = head+rptr1+rptr2+your+my1+my2
     #logger.info("D-Star packet header: "+repr(header))
@@ -85,6 +86,10 @@ def main():
         itap = ioctl(tap, TUNSETIFF, struct.pack("16sH", "dstar%d", IFF_TAP|IFF_NO_PI))
         ifname = itap[:16].strip("\x00")
         print "Allocated interface %s" % ifname
+        time.sleep(20)
+        # bring device up
+        # TODO... ret = ioctl(tap, cmd, req)
+        
     if pcap:
         pcap = open(pcap, "wb")
         pcap.write(binascii.a2b_hex(pcap_global_header))
@@ -128,7 +133,7 @@ def main():
                 pcap.write(binascii.a2b_hex(pcaph)+''.join(data))
             if device == "tap":
                 logger.info("Writign packet to TAP device")
-	        os.write(tap, data)
+	        os.write(tap, ''.join(data))
 
 
 if __name__ == "__main__":
