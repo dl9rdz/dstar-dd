@@ -119,7 +119,7 @@ class dstardd():
     # data is a byte string with ethernet frame (excluding CRC)
     # returns array of bits (0/1)
     def dstardd_encode(self, header, data):
-        crc = headercrc(header);
+        crc = self.headercrc(header);
         print ("Header CRC: ",crc)
         header = header + chr(crc&0xff) + chr((crc>>8)&0xff)
         print ("Full header: ",repr(header));
