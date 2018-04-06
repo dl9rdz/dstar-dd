@@ -36,7 +36,7 @@ pcap_packet_header =   ('SSSSSSSS'   # Timestamp (seconds)
 port = 0
 file = None
 sock = None
-data = None
+udpdata = None
 datapos = 0
 
 def usage():
@@ -52,22 +52,25 @@ def usage():
     print "    inputfile, if ommitted reads from stdin"
 
 def nextbyte():
-    global port, data, datapos, file, sock
+    global port, udpdata, datapos, file, sock, datalog
     if port:
-        if data and (datapos<len(data)):
+        if udpdata and (datapos<len(udpdata)):
             datapos=datapos+1
-            return data[datapos-1]
+            if datalog: datalog.write(udpdata[datapos-1])
+            return udpdata[datapos-1]
         else:
-            data = sock.recv(4096)
-            if len(data)==0: return ''
+            udpdata = sock.recv(4096)
+            if len(udpdata)==0: return ''
             datapos = 1
-            return data[datapos-1]
+            if datalog: datalog.write(udpdata[datapos-1])
+            return udpdata[datapos-1]
     else:
         return file.read(1);
     
 
 def main():
-    global port, data, datapos, file, sock
+    global port, udpdata, datapos, file, sock, datalog
+    datalog=open("datalog.out","wb")
     logging.basicConfig(format='%(message)s')
     logger = logging.getLogger('dstardd')
     loop = 0
@@ -148,6 +151,7 @@ def main():
                     al = nextbyte()
                 raw_header[i] = ord(al[0]) & 1
             (header,maxb) = decoder.dstardd_decode_header(raw_header)
+            if(maxb>2000): maxb=2000
             datapack = [0] * (maxb*8)
             for i in xrange(maxb*8):
                 al = nextbyte()
