@@ -150,7 +150,11 @@ def main():
                 if i > 0:
                     al = nextbyte()
                 raw_header[i] = ord(al[0]) & 1
-            (header,maxb) = decoder.dstardd_decode_header(raw_header)
+            (header,maxb,crcok) = decoder.dstardd_decode_header(raw_header)
+            logger.info("DStar header crc ok is "+repr(crcok))
+            if crcok==False:
+                logger.info("Skipping invalid D-Star frame")
+                continue;  # Ignore frames with invalid header crc
             if(maxb>2000): maxb=2000
             datapack = [0] * (maxb*8)
             for i in xrange(maxb*8):

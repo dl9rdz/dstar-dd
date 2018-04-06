@@ -14,6 +14,23 @@ class dstardd():
     def __init__(self):
         self.logger = None;
 
+    # input: dstar header as array of bytes
+    # output: 16 bit crc of header
+    def headercrc(self,data):
+        # Generate Header CRC
+        genpoly = 0x8408;
+        crc = 0xffff
+        for i in xrange(39):
+            crc ^= ord(data[i])
+            for j in xrange(8):
+                if(crc & 0x01):
+	            crc >>= 1;
+	            crc ^=    genpoly;
+	        else:
+	            crc >>=1 ;
+        crc ^=    0xffff;
+        return crc
+
     # Scrambe / descrable data with pseudo random sequence
     # self.sr must be initialized before first call
     def scramble(self,s):
@@ -51,7 +68,7 @@ class dstardd():
 
     #Decoder for DStar DD frames
     # header is an array of bits (0/1) (660 + 16 for len of data backet)
-    # returns header as byte array, len as int
+    # returns header as byte array, len as int, CRC OK flag (True/False)
     def dstardd_decode_header(self, header):
         self.sr = 0x7f
         header = self.scramble(header)
@@ -62,12 +79,16 @@ class dstardd():
             zeichen = 0
             for j in xrange(8): zeichen += headerbits[8*i+j] << j
             data += chr(zeichen)
+        crc = self.headercrc(data)
+        header_crc = (ord(data[40])&0xff)<<8 | (ord(data[39])&0xff) 
+        if self.logger:
+            self.logger.info("Calculated DStar header CRC %04x, received %04x" % (header_crc, crc))
         len = 0
         for i in xrange(2):
             for j in xrange(8): len += (header[660+i*8+j]&1)<<(i*8+j)
         if self.logger: self.logger.info("Decoded header data: "+repr(data))
         if self.logger: self.logger.info("Decoded len of payload: %d"%len)
-        return data, len+4
+        return data, len+4, (True if crc==header_crc else False)
 
     # Decoder for DStar DD frames -- payload
     # data is an array of bits (multiple of 8)
@@ -90,7 +111,7 @@ class dstardd():
         if crc!=rxcrc: ethcrc ^= 0xffffffff   # invalided crc for invalid dstar crc
         erg_pack += map(chr,bytearray(pack("<I",ethcrc)))
 
-        if self.logger: self.logger.info("Decoded packet data: "+repr(erg_pack))
+        #if self.logger: self.logger.info("Decoded packet data: "+repr(erg_pack))
         return erg_pack
 
     # Encoder for DStar DD frames
@@ -98,19 +119,7 @@ class dstardd():
     # data is a byte string with ethernet frame (excluding CRC)
     # returns array of bits (0/1)
     def dstardd_encode(self, header, data):
-        # Generate Header CRC
-        genpoly = 0x8408;
-        crc = 0xffff
-        for i in xrange(39):
-            crc ^= ord(header[i])
-            for j in xrange(8):
-                if(crc & 0x01):
-	            crc >>= 1;
-	            crc ^=    genpoly;
-	        else:
-	            crc >>=1 ;
-
-        crc ^=    0xffff;
+        crc = headercrc(header);
         print ("Header CRC: ",crc)
         header = header + chr(crc&0xff) + chr((crc>>8)&0xff)
         print ("Full header: ",repr(header));
