@@ -166,32 +166,71 @@ void dstar_decode_data(unsigned char *data, int datalen, unsigned char *ethframe
 	for(int i=0; i<4; i++) { ethframe[datalen-4+i] = (crc>>(8*i))&0xff; }
 }
 
-// datalen: without CRC
+// datalen: without CRC; data is writeable and has space for writing crc
 // all: must have space for 41 + 2 + datalen + 4 bytes (head, len, data, datacrc)
 void dstar_encode(unsigned char *header, unsigned char *data, int datalen, unsigned char *all) {
 	// Add CRC to header
+	unsigned char tmp[41];
+	memcpy(tmp, header, 39);
 	uint16_t hcrc = headercrc(header);
-	header[39] = hcrc&0xff;
-	header[40] = (hcrc>>8)&0xff;
+	tmp[39] = hcrc&0xff;
+	tmp[40] = (hcrc>>8)&0xff;
+	fprintf(stderr,"CRC is %04x\n", hcrc);
+	//fprintf(stderr,"Header before convolution: ");
+	//for(int i=0; i<41; i++) { fprintf(stderr, tmp[i]<31||tmp[i]>127?"\\%02x":"%c", tmp[i]); }
+
 	// Convolutional encoding of header
 	unsigned char symbols[HEADBITS];
-	encode(symbols, header, 41, 0, 0);
+	memset(symbols, -1, HEADBITS);
+	encode(symbols, tmp, 41, 0, 0);
+#if 0
+	fprintf(stderr, "\nSYM:                    ");
+	for(int i=0; i<HEADBITS-16; i++) {
+		fprintf(stderr,"%0d, ", symbols[i]);
+	}
+#endif
+
 	// Interleaving of header block
-	unsigned char interleaved[HEADBITS];
+	unsigned char interleaved[HEADBITS+(2+datalen+4)*8];
 	interleave(symbols, interleaved);
+	fprintf(stderr, "\n");
 
-	// Add CRC to data
-	//unsigned char all[41 + 2 + datalen + 4];
-	memcpy(all, header, 41);
-	all[41] = datalen&0xff;
-	all[42] = (datalen>>8)&0xff;
-	memcpy(all+43, data, datalen);
-	uint32_t crc = crc32(0, all+41, datalen+2);
-	for(int i=0; i<4; i++) { all[43+datalen+i] = (crc>>(8*i))&0xff; }
+	// Prepare payload (len + data + crc)
+	fprintf(stderr, "datalen is %d (%x)\n",datalen,datalen);
+	unsigned char payload[2+datalen+4];
+	payload[0] = datalen&0xff;
+	payload[1] = (datalen>>8)&0xff;
+	memcpy(payload+2, data, datalen);
+	uint32_t crc = crc32(0, payload, datalen+2);
+	for(int i=0; i<4; i++) { payload[datalen+2+i] = (crc>>(8*i))&0xff; }
+	datalen += 6; // including len and crc32
 
-	// Interleave
+	// Copy payload to end of interleaved
+	for(int i=0; i<8*datalen; i++) {
+		interleaved[HEADBITS-16+i] = (payload[i>>3]>>(i%8))&0x01;
+	}
+
+#if 0
+	// Copy interleaved header and len (660+16 bits) to all
+	// first bit goes into LSB
+	for(int i=0; i<HEADBITS; i++) {
+		if( (i&7)==0 ) { all[i>>3] = 0; }
+		all[i>>3] |= interleaved[i]<<(i&7);
+	}
+	// Copy data to all -- 660+16 bits occupy 84.5 bytes
+	for(int i=0; i<datalen-1; i++) {
+		all[84+i] |= (payload[i]&0x0f)<<4; //<<4)&0xf0;
+		all[85+i] = (payload[i]&0xf0)>>4;
+	}
+#endif
+	for(int i=0; i<HEADBITS-16+8*datalen; i++) {
+		if( (i&7)==0 ) { all[i>>3] = 0; }
+		all[i>>3] |= interleaved[i]<<(i&7);
+	}
+	
+	// Scramble
 	sr = 0x7f;
-	descramble_bytes(&sr, all, 41 + 2 + datalen + 4);
+	descramble_bytes(&sr, all, 85 + datalen);
 }
 
 void dstar_init() {

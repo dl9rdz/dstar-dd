@@ -185,7 +185,7 @@ void procdata(int bit) {
 #define RPTR1 "XX0XXX G"
 #define RPTR2 "XX0XXX A"
 #define YOUR "CQCQCQ  "
-#define MY1 "DL9RDZ  "
+#define MY1 "XX0YYY  "
 #define MY2 "IDID"
 #define DSTARHEAD (HEADFLAG RPTR1 RPTR2 YOUR MY1 MY2)
 unsigned char *dstarhead=DSTARHEAD;
@@ -206,20 +206,22 @@ int mainrunner(char *file) {
 		int n = read(tapfd, buf, 4096);
 		fprintf(stderr, "TX ...\n");
 
-		unsigned char encoded[41 + 2 + n + 4];
+		unsigned char encoded[85+n +4];   // n-4?
 		dstar_encode(dstarhead, buf, n, encoded);
-		int encodedlen = 41 + 2 + n +4;
+		int encodedlen = 85+n +4;
+#if 0
 		unsigned char prefix[100];
 		int prefixlen = PREFIX01/4+1;
 		memset(prefix, '\x55', prefixlen);
 		prefix[prefixlen] = '\x76'; // 0 1 1 1 0 1 1 0 
 		prefix[prefixlen+1] = '\x90'; // 0 1 0 1 0 0 0 0
 		prefixlen += 2;
+#endif
 		// binary writer
 		int first=2;
 		for(int i=0; i<encodedlen; i++) {
 			for(int j=0; j<8; j++) {
-				char c = (encoded[i]>>(7-j))&0x01;
+				char c = (encoded[i]>>(j))&0x01;
 				c+= first; first=0;
 				write(output, &c, 1);
 			}

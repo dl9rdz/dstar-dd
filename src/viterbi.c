@@ -333,7 +333,7 @@ unsigned int endstate)
 
   while(nbytes-- != 0){
     for(i=7;i>=0;i--){
-      encstate = (encstate << 1) | ((*data >> i) & 1);
+      encstate = (encstate << 1) | ((*data >> (7-i)) & 1); // dl9rdz rev order
       for(j=0;j<N;j++)
 	*symbols++ = parity(encstate & Polys[j]);
     }
