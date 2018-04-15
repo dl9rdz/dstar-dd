@@ -150,6 +150,7 @@ def main():
                 if i > 0:
                     al = nextbyte()
                 raw_header[i] = ord(al[0]) & 1
+            # print("raw header: "+repr(raw_header))
             (header,maxb,crcok) = decoder.dstardd_decode_header(raw_header)
             logger.info("DStar header crc ok is "+repr(crcok))
             if crcok==False:

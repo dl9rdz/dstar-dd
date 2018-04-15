@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<?grc format='1' created='3.7.12'?>
+<?grc format='1' created='3.7.10'?>
 <flow_graph>
   <timestamp>Mon Apr  2 18:29:53 2018</timestamp>
   <block>
@@ -73,20 +73,12 @@
       <value>True</value>
     </param>
     <param>
-      <key>sizing_mode</key>
-      <value>fixed</value>
-    </param>
-    <param>
       <key>thread_safe_setters</key>
       <value></value>
     </param>
     <param>
       <key>title</key>
       <value></value>
-    </param>
-    <param>
-      <key>placement</key>
-      <value>(0,0)</value>
     </param>
   </block>
   <block>
@@ -206,7 +198,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>file</key>
@@ -291,10 +283,6 @@
   <block>
     <key>blocks_file_source</key>
     <param>
-      <key>begin_tag</key>
-      <value>pmt.PMT_NIL</value>
-    </param>
-    <param>
       <key>alias</key>
       <value></value>
     </param>
@@ -312,7 +300,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/jann/DStar/dstar-dd/testout.bits</value>
+      <value>/home/dl9rdz/hackrf/dstar-dd/testout.bits</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -340,7 +328,7 @@
     </param>
     <param>
       <key>repeat</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>vlen</key>
@@ -418,7 +406,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -497,7 +485,7 @@
     </param>
     <param>
       <key>samples_per_symbol</key>
-      <value>8</value>
+      <value>4</value>
     </param>
     <param>
       <key>verbose</key>
@@ -1172,7 +1160,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>

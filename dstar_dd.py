@@ -72,6 +72,7 @@ class dstardd():
     def dstardd_decode_header(self, header):
         self.sr = 0x7f
         header = self.scramble(header)
+	# print("raw header bits: ", repr(header));
         headerbits = self.deinterleave(header)
         headerbits = self.convdecode(headerbits)   
         data = ""
@@ -105,7 +106,8 @@ class dstardd():
         rxcrc = unpack("<I",crcbytes[len(crcbytes)-4:])[0]
         if self.logger: self.logger.info("D-Star CRC ok: %s" % 'yes' if crc==rxcrc else 'no')
         # Check and fix ethernet frame checksum
-        erg_pack = erg_pack[6:12] + erg_pack[0:6] + erg_pack[12:len(erg_pack)-4]
+        # erg_pack = erg_pack[6:12] + erg_pack[0:6] + erg_pack[12:len(erg_pack)-4]
+        erg_pack = erg_pack[0:6] + erg_pack[6:12] + erg_pack[12:len(erg_pack)-4]
         crcbytes = ''.join(erg_pack)
         ethcrc = zlib.crc32(crcbytes) & 0xffffffff
         if crc!=rxcrc: ethcrc ^= 0xffffffff   # invalided crc for invalid dstar crc

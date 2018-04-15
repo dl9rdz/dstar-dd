@@ -114,6 +114,8 @@ def main():
         if packing == "1":
             logger.info("Writing 1S/b for bits "+str(len(bits)))
             bits[0] += 2
+            ethheader = [1, 0]*prefix + [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
+            bits = ethheader + bits
             b = ''.join(map(chr,bits))
             #for i in xrange(len(bits)):
             #    b = chr(bits[i]);
