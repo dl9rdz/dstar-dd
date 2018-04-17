@@ -1,0 +1,20 @@
+
+# For using with persistent TAP device and software handling network
+# without root privileges:
+# 
+# 1.) allocate persistent tap device
+ip tuntap add dev dstar0 mode tap user dl9rdz pi
+ip link set dstar0 up
+ip address add 33.33.33.33/24 dev dstar0
+ip route add xxx/xx via yy.yy.yy.yy
+
+# 2.) Run program using "dstar0" as a device name
+#     (open /dev/net/tun, ioctl with device name)
+
+#
+# For using with temporary TAP device, running as root:
+# Skip 1.)
+# Do 2.) (device name may contain "%d", e.g. "dstar%d", and the OS
+#         will automatically allocate the next free interface)
+# Set up interface
+
